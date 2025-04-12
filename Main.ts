@@ -131,12 +131,6 @@ function sendEmail (posts) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-const readline = require("readline");
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
-
 async function wait(timeout = 100) {
     await new Promise(resolve => setTimeout(resolve, timeout));
 }
