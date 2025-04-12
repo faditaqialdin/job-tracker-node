@@ -18,6 +18,7 @@ db.prepare(`
     jobUrl TEXT NOT NULL,
     position TEXT NOT NULL,
     company TEXT NOT NULL,
+    content TEXT NOT NULL,
     created_at DATETIME NOT NULL,
     recommended BOOLEAN NOT NULL
   )
@@ -27,8 +28,8 @@ function dbExist (post) {
     return handled.length > 0;
 }
 function dbPersist (post) {
-    const insert = db.prepare(`INSERT INTO jobs (jobUrl, position, company, created_at, recommended) VALUES (?, ?, ?, ?, ?)`);
-    insert.run(post.jobUrl, post.position, post.company, post.date, String(post.recommended));
+    const insert = db.prepare(`INSERT INTO jobs (jobUrl, position, company, content, created_at, recommended) VALUES (?, ?, ?, ?, ?)`);
+    insert.run(post.jobUrl, post.position, post.company, post.content, post.date, String(post.recommended));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -38,7 +39,7 @@ const { GoogleGenAI } = require('@google/genai');
 const ai = new GoogleGenAI({ apiKey: Config.googleGenAIApiKey });
 async function checkAi (post) {
     await wait();
-    const prompt = `Please analyze the following job post and return only 'true' or 'false' based on whether all of the following conditions are met:\n\n1. The position is based in Germany.\n2. PHP or any of its frameworks (e.g., Laravel, Symfony) is a primary requirement.\n3. The job post is written in English.\n4. Remote work is available.\n5. The role targets mid-senior to senior-level candidates.\n\nHere is the job post:\n\n---\n\n${post.content}\n\n---`;
+    const prompt = `${Config.prompt}\n\nHere is the job post:\n\n---\n\n${post.content}\n\n---`;
     const response = await ai.models.generateContent({
         model: 'gemini-2.0-flash',
         contents: prompt,
@@ -65,7 +66,7 @@ function extractTextPreservingFormatting($, elem) {
         } else if (child.type === 'tag') {
             result += extractTextPreservingFormatting($, child);
             if (newlineTags.has(child.tagName)) {
-                result += '\n';
+                result += "\n";
             }
         }
     });
@@ -81,23 +82,19 @@ async function fetchJobText(url) {
 }
 
 async function getPosts (page = 0) {
-    const posts = await linkedIn.query({
-        keyword: Config.searchData.keyword,
-        location: Config.searchData.location,
-        dateSincePosted: Config.searchData.dateSincePosted,
-        jobType: Config.searchData.jobType,
-        sortBy: Config.searchData.sortBy,
-        limit: '10',
-        page: String(page),
-    });
+    Config.searchData.limit = '10';
+    Config.searchData.page = String(page);
+    const posts = await linkedIn.query(Config.searchData);
+    const response = [];
     for (const post of posts) {
         try {
             post.content = await fetchJobText(post.jobUrl);
+            response.push(post);
         } catch (error) {
             console.error(error);
         }
     }
-    return posts;
+    return response;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -123,22 +120,10 @@ transporter.use('compile', hbs({
     extName: '.handlebars',
 }));
 
-function sendEmail (posts) {
-    transporter.sendMail({
-        from: Config.mailOptions.from,
-        to: Config.mailOptions.to,
-        subject: Config.mailOptions.subject,
-        template: Config.mailOptions.template,
-        context: { posts: posts }
-    }, (error, info) => {
-        if (error) {
-            console.error('Error sending email:', error);
-        } else {
-            console.log('Email sent:', info.response);
-        }
-    });
+async function sendEmail (posts) {
+    Config.mailOptions.context = { posts: posts };
+    await transporter.sendMail(Config.mailOptions);
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -171,7 +156,7 @@ async function wait(timeout = 100) {
             }
         }
         if (postsToBeEmailed.length > 0) {
-            sendEmail(postsToBeEmailed);
+            await sendEmail(postsToBeEmailed);
         }
     } catch (error) {
         console.error(error);

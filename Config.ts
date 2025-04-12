@@ -2,6 +2,13 @@
 
 module.exports = Object.freeze({
     googleGenAIApiKey: process.env.GOOGLE_GEN_AI_API_KEY,
+    prompt: `Please analyze the following job post and return only 'true' or 'false' 
+             based on whether ALL of the following conditions are met:\n\n
+             1. The position is based in Germany.\n
+             2. PHP or any of its frameworks (e.g., Laravel, Symfony) is a primary requirement.\n
+             3. The job post is mandatory written in English.\n
+             4. Remote work is available.\n
+             5. The role targets mid-senior to senior-level candidates.`,
     searchData: {
         keyword: 'php',
         location: 'Germany',
