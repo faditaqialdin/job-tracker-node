@@ -81,9 +81,15 @@ async function fetchJobText(url) {
 }
 
 async function getPosts (page = 0) {
-    Config.searchData.limit = '10';
-    Config.searchData.page = page;
-    const posts = await linkedIn.query(Config.searchData);
+    const posts = await linkedIn.query({
+        keyword: Config.searchData.keyword,
+        location: Config.searchData.location,
+        dateSincePosted: Config.searchData.dateSincePosted,
+        jobType: Config.searchData.jobType,
+        sortBy: Config.searchData.sortBy,
+        limit: '10',
+        page: String(page),
+    });
     for (const post of posts) {
         try {
             post.content = await fetchJobText(post.jobUrl);
@@ -118,8 +124,13 @@ transporter.use('compile', hbs({
 }));
 
 function sendEmail (posts) {
-    Config.mailOptions.context = { posts: posts };
-    transporter.sendMail(Config.mailOptions, (error, info) => {
+    transporter.sendMail({
+        from: Config.mailOptions.from,
+        to: Config.mailOptions.to,
+        subject: Config.mailOptions.subject,
+        template: Config.mailOptions.template,
+        context: { posts: posts }
+    }, (error, info) => {
         if (error) {
             console.error('Error sending email:', error);
         } else {

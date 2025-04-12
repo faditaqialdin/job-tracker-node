@@ -10,7 +10,7 @@ module.exports = Object.freeze({
         sortBy: 'recent',
     },
     mailOptions: {
-        jobCountPerMail: 5,
+        jobCountPerMail: 10,
 
         service: process.env.EMAIL_SERVICE,
         user: process.env.EMAIL_USER,
