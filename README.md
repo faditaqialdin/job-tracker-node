@@ -24,5 +24,5 @@ npm install
 2. Add your desired frequency:
     ```
     // Every day at midnight
-    0 0 * * * cd /path/to/your/project && npm run search
+    0 0 * * * cd /path/to/job-tracker-node && npm run search
     ```

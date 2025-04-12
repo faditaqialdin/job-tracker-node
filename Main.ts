@@ -28,7 +28,7 @@ function dbExist (post) {
     return handled.length > 0;
 }
 function dbPersist (post) {
-    const insert = db.prepare(`INSERT INTO jobs (jobUrl, position, company, content, created_at, recommended) VALUES (?, ?, ?, ?, ?)`);
+    const insert = db.prepare(`INSERT INTO jobs (jobUrl, position, company, content, created_at, recommended) VALUES (?, ?, ?, ?, ?, ?)`);
     insert.run(post.jobUrl, post.position, post.company, post.content, post.date, String(post.recommended));
 }
 
@@ -44,7 +44,7 @@ async function checkAi (post) {
         model: 'gemini-2.0-flash',
         contents: prompt,
     });
-    return Boolean(response.text.trim());
+    return response.text.trim() === 'true';
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -156,7 +156,7 @@ async function wait(timeout = 100) {
             }
         }
         if (postsToBeEmailed.length > 0) {
-            await sendEmail(postsToBeEmailed);
+            // await sendEmail(postsToBeEmailed);
         }
     } catch (error) {
         console.error(error);
