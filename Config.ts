@@ -28,5 +28,5 @@ module.exports = Object.freeze({
         subject: 'Recommended Job Opportunities',
         template: 'email',
     },
-    maxPageTries: 10,
+    maxPageTries: 100,
 });

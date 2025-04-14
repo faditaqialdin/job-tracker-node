@@ -23,8 +23,8 @@ db.prepare(`
     recommended BOOLEAN NOT NULL
   )
 `).run();
-function dbExist (post) {
-    const handled = db.prepare(`SELECT * FROM jobs WHERE jobUrl = '${post.jobUrl}'`).all();
+function dbExist (jobUrl) {
+    const handled = db.prepare(`SELECT * FROM jobs WHERE jobUrl = '${jobUrl}'`).all();
     return handled.length > 0;
 }
 function dbPersist (post) {
@@ -75,7 +75,8 @@ function extractTextPreservingFormatting($, elem) {
 
 async function fetchJobText(url) {
     await wait();
-    const { data: html } = await axios.get(url, {timeout: 1000 * 60 * 5});
+    console.log(url);
+    const { data: html } = await axios.get(url);
     const $ = cheerio.load(html);
     const container = $('.show-more-less-html__markup');
     return extractTextPreservingFormatting($, container).trim();
@@ -84,14 +85,23 @@ async function fetchJobText(url) {
 async function getPosts (page = 0) {
     Config.searchData.limit = '10';
     Config.searchData.page = String(page);
-    const posts = await linkedIn.query(Config.searchData);
+    return await linkedIn.query(Config.searchData);
+}
+
+async function filterPosts (posts) {
+    const regex = /\?(.)*/i;
     const response = [];
     for (const post of posts) {
         try {
+            post.jobUrl = post.jobUrl.replace(regex, "");
+            if (dbExist(post.jobUrl)) {
+                continue;
+            }
             post.content = await fetchJobText(post.jobUrl);
             response.push(post);
         } catch (error) {
-            console.error(error);
+            console.error('filterPosts: ' + error.message);
+            // await pause();
         }
     }
     return response;
@@ -127,7 +137,16 @@ async function sendEmail (posts) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-async function wait(timeout = 100) {
+const readline = require("readline");
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+async function pause() {
+    await new Promise(resolve => rl.question("Press enter to continue.", resolve));
+}
+
+async function wait(timeout = 15000) {
     await new Promise(resolve => setTimeout(resolve, timeout));
 }
 
@@ -136,14 +155,11 @@ async function wait(timeout = 100) {
         const postsToBeEmailed = [];
         let page = 0;
         while (postsToBeEmailed.length < Config.mailOptions.jobCountPerMail && page < Config.maxPageTries) {
-            const posts = await getPosts(page++);
+            const posts = await filterPosts(await getPosts(page++));
             for (const post of posts) {
                 try {
                     if (postsToBeEmailed.length >= Config.mailOptions.jobCountPerMail) {
                         break;
-                    }
-                    if (dbExist(post)) {
-                        continue;
                     }
                     post.recommended = await checkAi(post);
                     dbPersist(post);
@@ -151,15 +167,17 @@ async function wait(timeout = 100) {
                         postsToBeEmailed.push(post);
                     }
                 } catch (error) {
-                    console.error(error);
+                    console.error('checkAi: ' + error.message);
+                    // await pause();
                 }
             }
         }
         if (postsToBeEmailed.length > 0) {
-            // await sendEmail(postsToBeEmailed);
+            await sendEmail(postsToBeEmailed);
         }
     } catch (error) {
-        console.error(error);
+        console.error('General: ' + error.message);
+        // await pause();
     }
     process.exit();
 })();
